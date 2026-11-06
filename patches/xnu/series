@@ -11,3 +11,13 @@
 #
 # scripts/unixnu/patches.py rejects a missing file and a duplicated entry, and
 # applies them in this order; a bare filename is relative to this directory.
+
+# The ApplePMGR bridge, byte-identical to UniXNU's patches/xnu copy and to the
+# SM8550 SoC layer's.  It is not optional: the OS series patch
+# patches/xnu/zzz-boot-progress.patch inserts boot_progress_stage() calls into
+# the "#if defined(XNU_SHENG_PMGR)" block that this patch adds to bsd_init.c,
+# so leaving it out makes the OS series fail with
+#   error: patch failed: bsd/kern/bsd_init.c:773
+# The block is compiled out unless CONFIG_XNU_SHENG_PMGR is set, so carrying
+# the patch without the matching archive is safe for a console-only first boot.
+sheng-platform-power.patch
