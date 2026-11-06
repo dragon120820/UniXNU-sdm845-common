@@ -1,0 +1,34 @@
+"schema_version" = 2
+
+# UniXNU SDM845 shared SoC support - WORKING DRAFT, not an upstream repository.
+#
+# This directory exists because UniXNU ships no SDM845 SoC layer: `devices.toml`
+# registers all eight SDM845 handsets as format 1 legacy entries with no SoC
+# source, and `components.toml` has no Adreno 630.  Until such a repository
+# exists upstream, the OnePlus 6 board points its feed at this local checkout
+# through `feeds.toml`'s `local` key, which is deliberately never written to
+# `unixnu.lock`.
+#
+# Everything here is transcribed from the handset's own live FDT
+# (evidence/device/20261106_fdt/enchilada_live.dts, pulled from
+# /sys/firmware/fdt) and from /proc/iomem, not from another SoC's files.
+# The same values carry over to any other SDM845 board; the per-board DRAM
+# layout, peripherals and firmware stay in the device repository.
+
+["soc"]
+"name" = "sdm845"
+"description" = "Qualcomm SDM845 (Napali): 4x Cortex-A75 + 4x Cortex-A55, GICv3, ARMv8 timer, QMP UFS PHY, TLMM"
+# The hardware description was taken from the device's runtime device tree
+# rather than from an upstream mainline revision, so there is no external
+# source revision to point at yet.
+"source_repository" = "local: live FDT pulled from /sys/firmware/fdt on OnePlus 6 A6003"
+"source_revision" = "n/a (device read-back, 2026-11-06)"
+
+["components"]
+# ArmCpu      - CPU topology and PSCI bring-up
+# ArmDTPlatform - the /arm-io device tree platform expert
+# ArmSmmu4K   - the 4 KiB page SMMU driver; NOTE the SDM845 apps SMMU is a
+#               qcom,qsmmu-v500, which this component does not implement yet.
+#               Listed because the memory area needs a driver selection, and
+#               because leaving it out would hide the gap rather than record it.
+"include" = ["ArmCpu", "ArmDTPlatform", "ArmSmmu4K"]

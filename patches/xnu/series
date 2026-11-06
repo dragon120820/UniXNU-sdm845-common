@@ -1,0 +1,13 @@
+# Ordered shared SDM845 patches, one path per line.
+#
+# Empty on purpose. No XNU patch is known to be required by the SoC itself yet;
+# the two candidates are still unimplemented and are recorded in the device
+# repository's patches/xnu/series instead:
+#
+#   - no PAuth: SDM845's A75/A55 are ARMv8.2, the OS profile targets arm64 with
+#     no FEAT_PAuth, so nothing should need patching. Confirm at P5.
+#   - apps SMMU is a qcom,qsmmu-v500 and XNU's ArmSmmu4K has no V500 path. That
+#     patch, when it exists, is SoC work and belongs here.
+#
+# scripts/unixnu/patches.py rejects a missing file and a duplicated entry, and
+# applies them in this order; a bare filename is relative to this directory.

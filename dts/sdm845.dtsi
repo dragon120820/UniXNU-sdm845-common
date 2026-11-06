@@ -1,0 +1,213 @@
+/dts-v1/;
+
+/*
+ * Qualcomm SDM845 (Napali) shared hardware description - WORKING DRAFT.
+ *
+ * Every property is transcribed from the OnePlus 6 A6003's own live FDT
+ * (evidence/device/20261106_fdt/enchilada_live.dts, 26,548 lines / 3,260 nodes)
+ * and cross-checked against /proc/iomem on the same unit.  Where a value was
+ * derived rather than copied, the derivation is written next to it.
+ *
+ * Deliberately absent:
+ *   - memory: the DRAM extent is a board property, not an SoC property.
+ *   - reserved-memory: the carve-outs that matter (hyp, qseecom, splash) are
+ *     firmware and board decisions.
+ *   - peripheral controllers below the SoC level that only some boards wire up:
+ *     they belong in the board DTS until a second SDM845 board proves the
+ *     sharing.
+ *
+ * Only nodes carrying `unixnu,adt-name` are exported by
+ * scripts/unixnu/devicetree.py into /arm-io.
+ */
+
+/ {
+	compatible = "qcom,sdm845";
+	#address-cells = <0x2>;
+	#size-cells = <0x2>;
+	interrupt-parent = <&intc>;
+
+	/*
+	 * MPIDR affinity from the live FDT (cpu@0..cpu@700).
+	 *
+	 * CLUSTER MAPPING - the live /proc/cpuinfo is WRONG and must not be used.
+	 * It reports CPU part 0x803 (Cortex-A75) for cpu0-3 and 0x802 (A55) for
+	 * cpu4-7, but the measured cpuinfo_max_freq is 1,766,400 kHz for cpu0-3 and
+	 * 2,803,200 kHz for cpu4-7.  SDM845 is 4x A75 @ 2.80 GHz + 4x A55 @
+	 * 1.77 GHz, so the frequencies place the A75 at affinity 0x400-0x700
+	 * (cluster 1, gold) and the A55 at 0x000-0x300 (cluster 0, silver) - i.e.
+	 * this kernel's CPU part reporting is swapped relative to its own clock
+	 * tree.  The mapping below follows the frequencies.  Confirm with MIDR_EL1
+	 * at P5.
+	 *
+	 * timebase-frequency is NOT in the live FDT.  It is taken from the
+	 * architectural timer: /soc/timer clock-frequency = [01 24 f8 00] =
+	 * 19,200,000.
+	 */
+	cpus {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		timebase-frequency = <19200000>;
+
+		cpu@0 {
+			device_type = "cpu";
+			reg = <0x0>;
+			compatible = "arm,cortex-a55";
+			enable-method = "psci";
+			unixnu,cluster-type = "E";
+		};
+		cpu@100 {
+			device_type = "cpu";
+			reg = <0x100>;
+			compatible = "arm,cortex-a55";
+			enable-method = "psci";
+			unixnu,cluster-type = "E";
+		};
+		cpu@200 {
+			device_type = "cpu";
+			reg = <0x200>;
+			compatible = "arm,cortex-a55";
+			enable-method = "psci";
+			unixnu,cluster-type = "E";
+		};
+		cpu@300 {
+			device_type = "cpu";
+			reg = <0x300>;
+			compatible = "arm,cortex-a55";
+			enable-method = "psci";
+			unixnu,cluster-type = "E";
+		};
+		cpu@400 {
+			device_type = "cpu";
+			reg = <0x400>;
+			compatible = "arm,cortex-a75";
+			enable-method = "psci";
+			unixnu,cluster-type = "P";
+		};
+		cpu@500 {
+			device_type = "cpu";
+			reg = <0x500>;
+			compatible = "arm,cortex-a75";
+			enable-method = "psci";
+			unixnu,cluster-type = "P";
+		};
+		cpu@600 {
+			device_type = "cpu";
+			reg = <0x600>;
+			compatible = "arm,cortex-a75";
+			enable-method = "psci";
+			unixnu,cluster-type = "P";
+		};
+		cpu@700 {
+			device_type = "cpu";
+			reg = <0x700>;
+			compatible = "arm,cortex-a75";
+			enable-method = "psci";
+			unixnu,cluster-type = "P";
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		ranges = <0x0 0x0 0x0 0xffffffff>;
+
+		/*
+		 * GICv3.  reg and redistributor values are copied from the live FDT
+		 * node /soc/interrupt-controller@17a00000; redistributor-stride is a
+		 * two-cell u64 there ([00 00 00 00 | 00 02 00 00] = 0x20000) and
+		 * devicetree.py:220-224 accepts one or two cells.  phandle 1 is chosen
+		 * locally (the live value is 0x80); the generator only requires it to
+		 * be unique and nonzero.
+		 */
+		intc: interrupt-controller@17a00000 {
+			compatible = "arm,gic-v3";
+			reg = <0x17a00000 0x10000 0x17a60000 0x100000>;
+			interrupt-controller;
+			#interrupt-cells = <0x3>;
+			#redistributor-regions = <0x1>;
+			redistributor-stride = <0x0 0x20000>;
+			phandle = <0x1>;
+			unixnu,adt-name = "intc";
+		};
+
+		/*
+		 * UFS host controller.  SPI 265 (interrupts = <0x0 0x109 0x0>).
+		 * The live FDT has NO `iommus` property on this node and no stream
+		 * 0x100 anywhere in the tree, so the community kernel arguments
+		 * native-ufs-smmu-stream=0x100 / mask=0xf are not backed by the DT.
+		 * Whether UFS goes through the apps SMMU is unresolved.
+		 */
+		ufshc: ufshc@1d84000 {
+			compatible = "qcom,ufshc";
+			reg = <0x1d84000 0x2500>;
+			interrupts = <0x0 0x109 0x0>;
+			interrupt-parent = <&intc>;
+			lanes-per-direction = <0x2>;
+			non-removable;
+			status = "okay";
+			unixnu,adt-name = "ufshc";
+		};
+
+		/* QMP v3 PHY window: 0xda8 bytes, per the live FDT and /proc/iomem. */
+		ufsphy: ufsphy_mem@1d87000 {
+			compatible = "qcom,ufs-phy-qmp-v3";
+			reg = <0x1d87000 0xda8>;
+			#phy-cells = <0x0>;
+			status = "okay";
+			unixnu,adt-name = "ufs-phy";
+		};
+
+		/*
+		 * UFS inline crypto engine.  Not exported in the first round: the
+		 * VerifiedRoot path does its own 4 KiB block hashing in software.
+		 * Kept as a documented input for the storage phase.
+		 */
+		ufsice: ufsice@1d90000 {
+			compatible = "qcom,ice";
+			reg = <0x1d90000 0x8000>;
+			status = "disabled";
+		};
+
+		/*
+		 * TLMM.  The live FDT and /proc/iomem both say ONE 12 MiB window at
+		 * 0x03400000 (pinctrl_regs).  Mu-Silicium's MemoryMapLib instead maps
+		 * three 3 MiB blocks starting at 0x03500000, which omits the low 1 MiB
+		 * holding the GPIO 0-15 control registers.  Do not copy Mu here.
+		 * Not exported yet: a stdio-only first boot does not touch pins.
+		 */
+		tlmm: pinctrl@3400000 {
+			compatible = "qcom,sdm845-pinctrl";
+			reg = <0x3400000 0xc00000>;
+			status = "disabled";
+		};
+
+		/* Architectural timers.  clock-frequency is the timebase source. */
+		timer {
+			compatible = "arm,armv8-timer";
+			interrupts = <0x1 0x1 0xf08 0x1 0x2 0xf08 0x1 0x3 0xf08 0x1 0x0 0xf08>;
+			clock-frequency = <19200000>;
+		};
+
+		/*
+		 * Apps SMMU.  This is a qcom,qsmmu-v500 (V500 generation), not an
+		 * MMU-500: reg <0x15000000 0x80000> with the TCU window at
+		 * 0x150c2000, #iommu-cells = 2, and TBU children under
+		 * /soc/apps-smmu@0x15000000/*_tbu@*.  XNU's ArmSmmu4K has no V500
+		 * path.  Declared here as a documented resource only; no export until
+		 * a driver decision is made.
+		 */
+		apps_smmu: apps-smmu@15000000 {
+			compatible = "qcom,qsmmu-v500";
+			reg = <0x15000000 0x80000>, <0x150c2000 0x20>;
+			reg-names = "base", "tcu-base";
+			#iommu-cells = <0x2>;
+			status = "disabled";
+		};
+	};
+};
